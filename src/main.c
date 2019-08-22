@@ -1,13 +1,24 @@
 #include "stm32f0xx.h"
 #include "stm32f0_discovery.h"
 #include "font5x8.h"
-#include "wavetable.h"
+#include "wavetable.h"		// used for sound
 #include <stdio.h>
 #include <stdint.h>
 
-//#include "wavetable2.h"                  	// FOR SOUND
-#define SAMPLES 128                     	// FOR SOUND
+#define SAMPLES 128			// used for sound
 
+/*
+ * The following definitions are used for communicating with the LED
+ * display through the STM32's GPIO pins. A 128x64 pixel, backlit,
+ * parallel LED display was chosen for  this project:
+ *  - Product: https://www.sparkfun.com/products/710
+ *  - DataSheet: https://www.sparkfun.com/datasheets/LCD/GDM12864H.pdf
+ *  Note that there are two chip select pins (CS1, CS2) for interfacing
+ *  with this display.  This is so because the designers chose to refer to
+ *  the two halves of the 128x64 screen independently.  CS1 is used for
+ *  the left side, and CS2 for the right. I'll let the reader take a look at
+ *  the data sheet if interested in more of how each of these pins are used.
+ * */
 // Originally, the mask created below would be used for turning "on" bus pins
 // but in the end was not necessary
 #define DB0 (1<<0)
@@ -27,9 +38,12 @@
 #define EN  (1<<12)
 
 #define ball_radius 2				// number of pixels
-#define left_paddle_x 2 + 15               // x coordinate of center of left paddle
-#define right_paddle_x 125 - 15            // x coordinate of center of right paddle
+// paddles only move vertically, and are fixed 15 pixels from the left and right sides
+// the offset of 2 (0+2, 127-2) is to account for the width of each paddle
+#define left_paddle_x 2 + 15       	// x coordinate of center of left paddle
+#define right_paddle_x 125 - 15		// x coordinate of center of right paddle
 
+// function declarations
 void Initialize_LCD(void);
 void LCD_cmd(unsigned char, unsigned char);
 void LCD_Clear(void);
@@ -50,7 +64,6 @@ void set(unsigned char x, unsigned char y);
 void clear(unsigned char x, unsigned char y);
 int get_paddle_dy(int side);
 void ADCinit(void);
-
 //void (*cmd)(char a) = 0;
 //void (*data)(char a) = 0;
 
@@ -66,9 +79,11 @@ unsigned char dy = -1;
 unsigned char scoreleft = 0;
 unsigned char scoreright = 0;
 
+// a grotesque wavetable definition initially proposed before finding wavetable.h for import
 //int wavetable[]={2473,2915,3301,3604,3807,3896,3866,3719,3464,3117,2699,2238,1762,1301,883,536,281,134,104,193,396,699,1085,1527,2000,2473,2915,3301,3604,3807,3896,3866,3719,3464,3117,2699,2238,1762,1301,883,536,281,134,104,193,396,699,1085,1527,2000,2473,2915,3301,3604,3807,3896,3866,3719,3464,3117,2699,2238,1762,1301,883,536,281,134,104,193,396,699,1085,1527,2000,2473,2915,3301,3604,3807,3896,3866,3719,3464,3117,2699,2238,1762,1301,883,536,281,134,104,193,396,699,1085,1527,2000};
 
-
+// causes STM32 to wait for the specified number of nanoseconds
+// written earlier in the semester in assembly code and moved over
 void nano_wait(unsigned int i)
 {
     asm(    "       mov r0,%0\n"
@@ -76,6 +91,7 @@ void nano_wait(unsigned int i)
             "       bgt loop\n" : : "r"(i) : "r0", "cc");
 }
 
+// used to enable port B for interaction with the display
 void enable(void)
 {
     GPIOB->BSRR= EN;
@@ -85,6 +101,8 @@ void enable(void)
     nano_wait(100);
     GPIOB->BRR = EN;
 }
+
+// used to turn the display on
 void Initialize_LCD(void)
 {
     RCC->AHBENR |= RCC_AHBENR_GPIOBEN;
@@ -94,7 +112,7 @@ void Initialize_LCD(void)
     GPIOB->BRR = CS2 | CS1 | RW | DI | EN;  //Set all control ports low     -- RW now tied to ground
     nano_wait(1500);
 
-    //Turn on the data bus pins                                                 ... why do this?
+    //Turn on the data bus pins				... actually unnecessary
     //GPIOB->BSRR = Data_Mask;                //(0xff<<16) | data;
 
     unsigned char i;
@@ -104,6 +122,8 @@ void Initialize_LCD(void)
     }
 
 }
+
+// used to tell the display what kind of action is about to be performed
 void LCD_cmd(unsigned char cmd, unsigned char chip_select) // always writes
 {
     if (chip_select == 0){      //Select the chip
@@ -119,26 +139,28 @@ void LCD_cmd(unsigned char cmd, unsigned char chip_select) // always writes
     GPIOB->BRR = DI | RW;       // both low for address commands        -- RW tied to ground
 
     GPIOB->BSRR = cmd | (0xff<<16);      //Sets the command in the ouptput register
-//    cmd ^= 0xff;               //Toggles the bits on/off
-//    GPIOB->BRR = cmd<<0;       //Turns off the output pins in BRR
+//    cmd ^= 0xff;              //Toggles the bits on/off
+//    GPIOB->BRR = cmd<<0;      //Turns off the output pins in BRR
 //    GPIOB->ODR = cmd;
-    nano_wait(200);
+    nano_wait(200);				// according to datasheet timing specifications
 
-    GPIOB->BSRR = EN;          //High Pulse
-    nano_wait(4000);
+    GPIOB->BSRR = EN;          	//High Pulse
+    nano_wait(4000);			// according to datasheet timing specifications
 
     // ---------------- WRITING COMMAND NOW ---------------------- //
 
-    GPIOB->BRR = EN;           //Low Pulse
-    nano_wait(4000);
+    GPIOB->BRR = EN;           	//Low Pulse, now we're done
+    nano_wait(4000);			// according to datasheet timing specifications
 
 }
 
+// a first-pass method at clearing the screen that proved unsuccessful
+// clearScreen() is used instead
 void LCD_Clear(void)
 {
     unsigned char i,j;
     for (i=0;i<8;i++)
-    {
+    {a
         LCD_coord(0,i);
         for (j=0;j<128;j++)
         {
@@ -148,6 +170,8 @@ void LCD_Clear(void)
     LCD_coord(0,0);     //Go to initial position
 }
 
+// used to clear the screen
+// cycles through every pixel calling clear() to clear them
 void clearScreen()
 {
     unsigned char x_cord, y_cord;
@@ -164,6 +188,7 @@ void clearScreen()
     }
 }
 
+// used to place the cursor where a pixel is to be set or cleared
 void LCD_coord(unsigned char x, unsigned char y)
 {
     unsigned char i;
@@ -177,10 +202,11 @@ void LCD_coord(unsigned char x, unsigned char y)
 
     LCD_cmd(0x40 | (x%64), (x/64));
     LCD_cmd(0xB8 | (y/8), (x/64));
-//    LCD_cmd(0xC0 | 0, (x/64));    //Set the display line
     LCD_cmd(0xC0 | 0, (x/64));    //Set the display line
 }
 
+// used to write data to the screen
+// always follows a write command from LCD_cmd
 void LCD_WriteData(unsigned char x, unsigned char data)
 {
     if (x>63){                  //Select the chip
@@ -198,13 +224,13 @@ void LCD_WriteData(unsigned char x, unsigned char data)
     GPIOB->BSRR = DI;           //high for data
 
     GPIOB->BSRR = data | (0xff<<16);      //Sets the command in the ouptput register
-//    data ^= 0xff;               //Toggles the bits on/off
+//    data ^= 0xff;               //Toggles the bits on/off.. actually unnecessary
 //    GPIOB->BRR = data<<0;
 //    GPIOB->ODR = data;
-    nano_wait(200);
+    nano_wait(200);				// according to datasheet timing specifications
 
     GPIOB->BSRR = EN;           //High Pulse
-    nano_wait(4000);
+    nano_wait(4000);			// according to datasheet timing specifications
 
     // ---------------- WRITING DATA NOW ---------------------- //
 
@@ -213,6 +239,7 @@ void LCD_WriteData(unsigned char x, unsigned char data)
 
 }
 
+// used to set a single pixel
 void set(unsigned char x, unsigned char y)
 {
     unsigned char data = 1 << (y%8);
@@ -240,6 +267,7 @@ void set(unsigned char x, unsigned char y)
 
 }
 
+// used to clear a single pixel
 void clear(unsigned char x, unsigned char y)
 {
     unsigned char data = 1 << (y%8);
@@ -265,6 +293,7 @@ void clear(unsigned char x, unsigned char y)
 
 }
 
+// sets pixels in the form of a circle (represents pong ball)
 void makeCircle(unsigned char ball_x, unsigned char ball_y)
 {
 
@@ -297,6 +326,7 @@ while(radius >= yy)
   }
 }
 
+// clears a circle of pixels
 void clearCircle(unsigned char ball_x, unsigned char ball_y)
 {
 
@@ -329,6 +359,7 @@ while(radius >= yy)
   }
 }
 
+// sets pixels in the form of a paddle
 void makePaddle(unsigned char paddle, unsigned char paddle_y){
     int paddle_x;             // x coordinate of center of paddle 3 or 125
     if (paddle == 0){
@@ -345,6 +376,8 @@ void makePaddle(unsigned char paddle, unsigned char paddle_y){
         }
     }
 }
+
+// clears a "paddle" of pixels
 void clearPaddle(unsigned char paddle, unsigned char paddle_y){
     int paddle_x;             // x coordinate of center of paddle 3 or 125
     if (paddle == 0){
@@ -363,6 +396,8 @@ void clearPaddle(unsigned char paddle, unsigned char paddle_y){
     }
 }
 
+// used to initialize STM32's analog to digital converter
+// ADC is used for joysticks
 void ADCinit(void)
 {
     {
@@ -377,13 +412,10 @@ void ADCinit(void)
     }
 }
 
+// returns the rate of change in the y direction of a paddle
+// dependent on joystick position
 int get_paddle_dy(int side)
 {
-    // uses pa0, pa1
-    //left = 0;
-    //right = 1;
-
-
         ADC1->CHSELR = 0;
         ADC1->CHSELR |= 1<<side;
         while(!(ADC1->ISR & ADC_ISR_ADRDY));
@@ -421,11 +453,14 @@ int get_paddle_dy(int side)
         return dy;
 }
 
+/*
+ * The following three functions were moved in from an external open source library
+ *  by teammate Roberto Beltran Jr to write characters and numbers to the screen
+ * */
 unsigned char Read_Byte(char *ptr)
 {
     return *(ptr);
 }
-
 void LCD_WriteChar(unsigned char x, char character)
 {
     int i;
@@ -445,27 +480,33 @@ void LCD_WriteString(unsigned char x, char * string)
 
 
 
-
+// here's where the magic happens
 int main(void)
 {
-//	clearScreen();
-//	nano_wait(1000);
-//    tetris();
-
+	// turn screen on and clear from previous game
     Initialize_LCD();
     clearScreen();
+
+    // a few display things we didn't have time to fix
+    // having these pixels set sometimes inhibited the ball from
+    // recognizing that it hit the top of the screen
 //    LCD_coord(55,3);
 //    LCD_WriteString(55, "PONG!");
 //    nano_wait(500000000);
-//
+
 //    clearScreen();
 //    LCD_coord(55,3);
 //    LCD_WriteString(55, "GET READY!");
 //    nano_wait(500000000);
-
 //    clearScreen();
+
+
+    // plays tetris theme song.
+	// all code for sound is found at the bottom of this file
     tetris();
-    LCD_coord(55,32);
+
+    // countdown for game to start
+    LCD_coord(55,32);		// top-center
     LCD_WriteString(55, "3");
     nano_wait(500000000);
 
@@ -485,35 +526,39 @@ int main(void)
     nano_wait(500000000);
     clearScreen();
 
+    // paddles and ball appear
+    // all centered vertically, ball centered horizontally as well
     makePaddle(0, global_left_paddle_y);
     makePaddle(1, global_right_paddle_y);
     makeCircle(global_ball_x, global_ball_y);
 
+    // initialize scoreboard
+    // player 1 score
     LCD_coord(53,0);
     char c [8];
     itoa(scoreleft,c,10);
     LCD_WriteString(53,c);
 
+    // player 2 score
 	LCD_coord(74,0);
     char c2 [8];
     itoa(scoreright,c2,10);
     LCD_WriteString(74,c2);
 
-    ADCinit();
+    ADCinit();		// effectively turns the joysticks on
 
     for (;;)
     {
-        global_left_paddle_dy = get_paddle_dy(0);                // pa0
+    	// based on joystick position, determine paddle rate of change
+        global_left_paddle_dy = get_paddle_dy(0);                // pa0, for left paddle
         nano_wait(100000);
-        global_right_paddle_dy = get_paddle_dy(1);               // pa1
+        global_right_paddle_dy = get_paddle_dy(1);               // pa1, for right paddle
 
+        // remove old paddles
         clearPaddle(0, global_left_paddle_y);
         clearPaddle(1, global_right_paddle_y);
 
-//        if ((global_left_paddle_y < 10) && (global_left_paddle_dy < 0))             // no further up
-//        {
-//            global_left_paddle_dy = 0;
-//        }
+        // ensure left paddle stays on screen
 		if ((global_left_paddle_y < 20) && (global_left_paddle_dy < 0))             // no further up
 		{
 			global_left_paddle_dy = 0;
@@ -523,11 +568,7 @@ int main(void)
             global_left_paddle_dy = 0;
         }
 
-//        if ((global_right_paddle_y < 10) && (global_right_paddle_dy < 0))             // no further up
-//        {
-//            global_right_paddle_dy = 0;
-//        }
-
+		// ensure right paddle stays on screen
 		if ((global_right_paddle_y < 20) && (global_right_paddle_dy < 0))             // no further up
 		{
 			global_right_paddle_dy = 0;
@@ -537,17 +578,20 @@ int main(void)
             global_right_paddle_dy = 0;
         }
 
+		// update paddle positions
         global_left_paddle_y += global_left_paddle_dy;
         global_right_paddle_y += global_right_paddle_dy;
 
+        // create paddles at new positions
         makePaddle(0, global_left_paddle_y);
         makePaddle(1, global_right_paddle_y);
 
+
+        // remove old ball
         clearCircle(global_ball_x,global_ball_y);
 
 
-
-        //checks if collide with left paddle
+        //check for collision with left paddle
         if(((global_ball_x - ball_radius) == (left_paddle_x + 1)) && (global_left_paddle_y - 12 <= global_ball_y) && (global_ball_y <= global_left_paddle_y + 12)){
 //            dx = -dx;
             if((global_left_paddle_y - 12 <= global_ball_y) && (global_ball_y <= global_left_paddle_y - 7)){
@@ -572,9 +616,8 @@ int main(void)
             }
         }
 
-        //checks if collide with right paddle
+        //check for collision with right paddle
         else if(((global_ball_x + ball_radius) == (right_paddle_x - 1)) && (global_right_paddle_y - 12 <= global_ball_y) && (global_ball_y <= global_right_paddle_y + 12)){
-//            dx = -dx;
             if((global_right_paddle_y - 12 <= global_ball_y) && (global_ball_y <= global_right_paddle_y - 7)){
                 dy = -2;
                 dx = -1;
@@ -597,7 +640,7 @@ int main(void)
             }
         }
 
-        //checks if ball reaches either side of display, if so reset and turn around
+        //check if ball hits either side of display, if so reset and turn around
         else if(global_ball_x - ball_radius <= 0 || global_ball_x + ball_radius >= 127){
 
         	clearCircle(global_ball_x,global_ball_y);
@@ -624,8 +667,7 @@ int main(void)
             dx = -dx;
         }
 
-        //checks if ball reaches top/bottom of display, if so turn around
-        //else if(global_ball_y - ball_radius <= 0 || global_ball_y + ball_radius >=63)
+        //checks if ball reaches top/bottom of display, if so turn around (vertically)
         else if(global_ball_y - ball_radius <= 10 || global_ball_y + ball_radius >=60)
             dy = -dy;
 
@@ -634,15 +676,24 @@ int main(void)
 
         makeCircle(global_ball_x, global_ball_y);
 
-        nano_wait(30000000);                                   // 50 ms
+		nano_wait(30000000);		// 30 ms, fastest display could keep up with changes
     }
 
     return 0;
 }
 
+
+
 // ================================================================================================================================= //
 // ================================================== CODE BELOW IS ALL FOR SOUND ================================================== //
 // ================================================================================================================================= //
+
+/*
+ * To play sound, the STM32's digital-to-analog converter (DAC) and TIMER 2 are needed
+ *
+ *
+ * */
+
 
 int s1 = 0;
 int s2 = 0;
@@ -654,8 +705,9 @@ uint32_t start = 0, end = 0;
 // declare global variables
 int global_counter1 = 0;
 int global_counter2 = 0;
-//float a1, a2;
 
+// using a circular buffer, the DAC can run continuously
+// turns out this is simple enough to run without it
 void insert_circ_buf(int val) {
     if(start <= end && end <= (SAMPLES-1)) {
         circ_buf[end++] = val;
@@ -672,6 +724,7 @@ void insert_circ_buf(int val) {
     }
 }
 
+// unused.  helpful with circular buffer
 float get_time_period(int min, int max) {
     int start_interval = 0;
     int sample_count = 0;
@@ -707,9 +760,9 @@ void setup_gpio() {
     GPIOA->MODER |= (3<<2*0) | (3<<2*1) | (3<<2*2) | (3<<2*4);
 }
 
-// This function should enable the clock to the
-// onboard DAC, enable trigger,
-// setup software trigger and finally enable the DAC.
+// This function enables the clock to the
+// onboard DAC, enables the trigger,
+// sets up the software trigger and finally enables the DAC.
 void setup_dac() {
     RCC->APB1ENR |= RCC_APB1ENR_DACEN;      // Enable clock to DAC
     DAC->CR &= ~DAC_CR_EN1;                 // Disable DAC channel 1
@@ -719,10 +772,11 @@ void setup_dac() {
     DAC->CR |= DAC_CR_EN1;                  // Enable DAC channel 1
 }
 
-// This function should,
-// enable clock to timer2,
-// setup prescalaer and arr so that the interrupt is triggered 100us,
-// enable the timer 2 interrupt and start the timer.
+// This function:
+// enables the clock to timer2,
+// sets up the prescalaer and arr so that the interrupt is triggered every 100us,
+// enables the timer 2 interrupt,
+// and starts the timer.
 void setup_timer2() {
     RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;     // enable clock to timer2
 
@@ -738,34 +792,31 @@ void setup_timer2() {
     TIM2->DIER |= TIM_DIER_UIE;                 // Update interrupt enabled
     TIM2->CR1 |= TIM_CR1_CEN;               // Enable the timer counter
     NVIC->ISER[0] = 1<<TIM2_IRQn;           // Enable timer 2 interrupt in the interrupt controller (NVIC)
-
-    //TIM2->CR1 |= TIM_CR1_CEN;               // enable the timer 2 interrupt
-
-    //NVIC->ISER[0] = 1<<TIM2_IRQn;
-
 }
 
 
-// TIM2_IRQHandler: The interrupt handler should start the DAC conversion using the software trigger,
+// TIM2_IRQHandler: This interrupt handler should start the DAC conversion using the software trigger,
 // and should use the wavetable.h to read from the array and write it into the DAC.
-// Every time the interrupt is called you will read a new element from the �wavetable� array.
-// So you might need to use a global variable as an index to the array.
-// Note that the array has 100 elements, make sure you do not read wavetable[100].
+// Every time the interrupt is called you will read a new element from the wavetable array.
+// So a global variable is used as an index to the array.
+// Note that the array has 100 elements, never attempt to read wavetable[100].
 void TIM2_IRQHandler() {
+
     //DAC->CR |= DAC_CR_TSEL1;        // start DAC conversion using software trigger
     TIM2 -> SR &= ~TIM_SR_UIF;
+
     // Wait for DAC to clear the SWTRIG1 bit
     while((DAC->SWTRIGR & DAC_SWTRIGR_SWTRIG1) == DAC_SWTRIGR_SWTRIG1);
-    // Put new value into 12-bit, right-aligned holding register.
 
-    // 6.2
+    // Put new value into 12-bit, right-aligned holding register.
+    // 6.2 (referencing a step in the lab procedure used to learn about DAC)
     if (global_counter1 == 100)
         {
            global_counter1 = 0;
         }
     //DAC->DHR12R1 = wavetable[global_counter1++];
 
-    // 6.3
+    // 6.3 (referencing a step in the lab procedure used to learn about DAC)
     if (global_counter2 == 100)
         {
            global_counter2 = 0;
@@ -777,8 +828,12 @@ void TIM2_IRQHandler() {
     DAC->SWTRIGR |= DAC_SWTRIGR_SWTRIG1;
 }
 
+// used to play individual notes for a defined duration
 void play_sound(char note, char duration){
     int freq, dur;
+
+    // note frequencies table:
+    // https://www.audiology.org/sites/default/files/ChasinConversionChart.pdf#targetText=Conversion%20chart%20from%20letter%20note,is%20C8%20at%204186%20Hz.
 
     // 7th octave gives more room for error
     if (note == 'A'){
@@ -807,33 +862,36 @@ void play_sound(char note, char duration){
     TIM2->ARR = (480000 / freq) - 1;
     TIM2->CNT = 0;
 
-    if (duration == 'w'){
+    if (duration == 'w'){		// whole notes
         dur = 1000000;
     }
-    else if (duration == 'h'){
+    else if (duration == 'h'){	// half notes
         dur = 1000000 / 2;
     }
-    else if (duration == 'q'){
+    else if (duration == 'q'){	// quarter notes
         dur = 1000000 / 4;
     }
-    else if (duration == 'e'){
+    else if (duration == 'e'){	// eighth notes
         dur = 1000000 / 8;
     }
-    else if (duration == 's'){
+    else if (duration == 's'){	// sixteenth notes
         dur = 1000000 / 16;
     }
 
     micro_wait(dur);
-//    nano_wait(dur<<3);
+//    nano_wait(dur<<3);		// should also work, but for some reason it didn't
 
+    // pause after each note, so they don't run together
     DAC->CR &= ~DAC_CR_EN1;
-    micro_wait(10000);       // 10 ms?
+    micro_wait(10000);       // 10 ms
 //    nano_wait(10000<<3);
     DAC->CR |= DAC_CR_EN1;
+
     return;
 
 }
 
+// call this method to play the tetris theme song
 void tetris(void)
 {
     serial_init();
@@ -871,6 +929,8 @@ void tetris(void)
     play_sound('A', 'q');
     play_sound('r', 'q'); // rest, then second line
 
+    // commented code below represents the second half of the tetris song
+    // people want to play and are impatient
 //    play_sound('D', 'q');
 //        play_sound('D', 'e'); // this note is 1.5
 //    play_sound('F', 'e');
@@ -895,11 +955,8 @@ void tetris(void)
 //    play_sound('A', 'q');
 //    play_sound('r', 'q'); // rest
 
-    // notes aren't quite right below line 236.
     micro_wait(1000000);
-//    nano_wait(1000000000);
     DAC->CR &= ~DAC_CR_EN1;         // TURN IT OFF. PLEASE TURN IT OFF!!!!
-//    return;
 }
 
 
