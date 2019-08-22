@@ -1,0 +1,53 @@
+################################################################################
+# Automatically-generated file. Do not edit!
+################################################################################
+
+# Add inputs and outputs from these tool invocations to the build variables 
+S_SRCS += \
+../src/micro_wait.s \
+../src/stdio.s 
+
+C_SRCS += \
+../src/main\ (6).c \
+../src/syscalls.c \
+../src/system_stm32f0xx.c 
+
+OBJS += \
+./src/main\ (6).o \
+./src/micro_wait.o \
+./src/stdio.o \
+./src/syscalls.o \
+./src/system_stm32f0xx.o 
+
+C_DEPS += \
+./src/main\ (6).d \
+./src/syscalls.d \
+./src/system_stm32f0xx.d 
+
+
+# Each subdirectory must supply rules for building sources it contributes
+src/main\ (6).o: U:/Personal/SystemWorkbench2.7/ECE362_MINI_PROJ/src/main\ (6).c
+	@echo 'Building file: $<'
+	@echo 'Invoking: MCU GCC Compiler'
+	@echo $(PWD)
+	arm-none-eabi-gcc -mcpu=cortex-m0 -mthumb -mfloat-abi=soft -DSTM32 -DSTM32F0 -DSTM32F051R8Tx -DSTM32F0DISCOVERY -DDEBUG -DSTM32F051 -DUSE_STDPERIPH_DRIVER -I"U:/Personal/SystemWorkbench2.7/ECE362_MINI_PROJ/Utilities" -I"U:/Personal/SystemWorkbench2.7/ECE362_MINI_PROJ/StdPeriph_Driver/inc" -I"U:/Personal/SystemWorkbench2.7/ECE362_MINI_PROJ/inc" -I"U:/Personal/SystemWorkbench2.7/ECE362_MINI_PROJ/CMSIS/device" -I"U:/Personal/SystemWorkbench2.7/ECE362_MINI_PROJ/CMSIS/core" -O0 -g3 -Wall -fmessage-length=0 -ffunction-sections -c -MMD -MP -MF"src/main (6).d" -MT"$@" -o "$@" "$<"
+	@echo 'Finished building: $<'
+	@echo ' '
+
+src/%.o: ../src/%.s
+	@echo 'Building file: $<'
+	@echo 'Invoking: MCU GCC Assembler'
+	@echo $(PWD)
+	arm-none-eabi-as -mcpu=cortex-m0 -mthumb -mfloat-abi=soft -I"U:/Personal/SystemWorkbench2.7/ECE362_MINI_PROJ/Utilities" -I"U:/Personal/SystemWorkbench2.7/ECE362_MINI_PROJ/StdPeriph_Driver/inc" -I"U:/Personal/SystemWorkbench2.7/ECE362_MINI_PROJ/inc" -I"U:/Personal/SystemWorkbench2.7/ECE362_MINI_PROJ/CMSIS/device" -I"U:/Personal/SystemWorkbench2.7/ECE362_MINI_PROJ/CMSIS/core" -g -o "$@" "$<"
+	@echo 'Finished building: $<'
+	@echo ' '
+
+src/%.o: ../src/%.c
+	@echo 'Building file: $<'
+	@echo 'Invoking: MCU GCC Compiler'
+	@echo $(PWD)
+	arm-none-eabi-gcc -mcpu=cortex-m0 -mthumb -mfloat-abi=soft -DSTM32 -DSTM32F0 -DSTM32F051R8Tx -DSTM32F0DISCOVERY -DDEBUG -DSTM32F051 -DUSE_STDPERIPH_DRIVER -I"U:/Personal/SystemWorkbench2.7/ECE362_MINI_PROJ/Utilities" -I"U:/Personal/SystemWorkbench2.7/ECE362_MINI_PROJ/StdPeriph_Driver/inc" -I"U:/Personal/SystemWorkbench2.7/ECE362_MINI_PROJ/inc" -I"U:/Personal/SystemWorkbench2.7/ECE362_MINI_PROJ/CMSIS/device" -I"U:/Personal/SystemWorkbench2.7/ECE362_MINI_PROJ/CMSIS/core" -O0 -g3 -Wall -fmessage-length=0 -ffunction-sections -c -MMD -MP -MF"$(@:%.o=%.d)" -MT"$@" -o "$@" "$<"
+	@echo 'Finished building: $<'
+	@echo ' '
+
+
