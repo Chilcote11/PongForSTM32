@@ -559,20 +559,20 @@ int main(void)
         clearPaddle(1, global_right_paddle_y);
 
         // ensure left paddle stays on screen
-		if ((global_left_paddle_y < 20) && (global_left_paddle_dy < 0))             // no further up
-		{
-			global_left_paddle_dy = 0;
-		}
+	if ((global_left_paddle_y < 20) && (global_left_paddle_dy < 0))             // no further up
+	{
+		global_left_paddle_dy = 0;
+	}
         else if ((global_left_paddle_y > (62-12)) && (global_left_paddle_dy > 0))   // no further down
         {
             global_left_paddle_dy = 0;
         }
 
-		// ensure right paddle stays on screen
-		if ((global_right_paddle_y < 20) && (global_right_paddle_dy < 0))             // no further up
-		{
-			global_right_paddle_dy = 0;
-		}
+	// ensure right paddle stays on screen
+	if ((global_right_paddle_y < 20) && (global_right_paddle_dy < 0))             // no further up
+	{
+		global_right_paddle_dy = 0;
+	}
         else if ((global_right_paddle_y > (62-12)) && (global_right_paddle_dy > 0))   // no further down
         {
             global_right_paddle_dy = 0;
@@ -930,7 +930,7 @@ void tetris(void)
     play_sound('r', 'q'); // rest, then second line
 
     // commented code below represents the second half of the tetris song
-    // people want to play and are impatient
+    // people are impatient and want to play
 //    play_sound('D', 'q');
 //        play_sound('D', 'e'); // this note is 1.5
 //    play_sound('F', 'e');
